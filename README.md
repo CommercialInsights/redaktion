@@ -40,3 +40,4 @@ Byta teamkod: kör funktionen `bytTeamkod` i Apps Script.
 ## Senare
 
 - AI-förslag på bolag och kontaktpersoner (kräver en API-nyckel som sparas i Apps Script, aldrig här).
+- Mejlutkast direkt i Gmail i stället för mailto ("Skapa utkast" per lead och för alla ej meddelade). Öppen fråga: vilken avsändaradress, och hur Kalles utkast ska hanteras.
