@@ -25,7 +25,7 @@ window.CONFIG = {
     DR: { namn: 'Dagens Rapport', farg: '#B4581A' }
   },
 
-  FORMAT: ['Tre snabba', 'Medarbetarporträtt', 'Reportage', 'Nyhet', 'Medlemsnyhet', 'Podd + artikel', 'Annat'],
+  FORMAT: ['Nyhet', 'Tre snabba', 'Medarbetarporträtt', 'Reportage', 'Medlemsnyhet', 'Podd + artikel', 'Annat'],
 
   STATUS: ['Idé', 'Intervju bokad', 'Skrivs', 'Granskas', 'Publicerad'],
 
