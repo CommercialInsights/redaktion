@@ -749,7 +749,6 @@
     artikelTyp = a.typ || 'Redaktionell';
     $('#a-url').value = a.url || '';
     $('#a-rubrik').value = a.rubrik || '';
-    $('#a-kund').value = a.kundAmne || '';
     $('#a-format').innerHTML = options(C.FORMAT, a.format || C.FORMAT[0]);
     $('#a-datum').value = a.planeratDatum || '';
     var ansv = a.ansvarig || (C.ANSVARIGA.indexOf(state.namn) >= 0 ? state.namn : C.ANSVARIGA[0]);
@@ -792,7 +791,6 @@
     var rad = {
       publikation: artikelPub,
       rubrik: $('#a-rubrik').value.trim(),
-      kundAmne: $('#a-kund').value.trim(),
       format: $('#a-format').value,
       planeratDatum: $('#a-datum').value,
       ansvarig: $('#a-ansvarig').value,
