@@ -546,14 +546,38 @@
     k = k || {};
     return '<div class="kontakt">' +
       klistraHtml() +
-      '<div class="falt"><span>Namn</span><input type="text" data-k="namn" value="' + esc(k.namn) + '"></div>' +
-      '<div class="falt"><span>Roll</span><input type="text" data-k="roll" value="' + esc(k.roll) + '" placeholder="T.ex. kommunikationschef"></div>' +
       '<button type="button" class="knapp liten ta-bort" aria-label="Ta bort kontakt" title="Ta bort kontakt">×</button>' +
-      '<div class="falt"><span>Mejl</span><input type="email" data-k="mejl" value="' + esc(k.mejl) + '"></div>' +
-      '<div class="falt"><span>Telefon</span><input type="text" data-k="telefon" value="' + esc(k.telefon) + '"></div>' +
-      '<div class="falt" style="grid-column:1 / -1"><span>Företag <span style="font-weight:400;color:var(--dampad)">– om annat än artikelns bolag</span></span><input type="text" data-k="foretag" value="' + esc(k.foretag) + '"></div>' +
+      '<details class="kontakt-detaljer">' + sammanfattningHtml(k) +
+        '<div class="rutnat2">' +
+          '<div class="falt"><span>Namn</span><input type="text" data-k="namn" value="' + esc(k.namn) + '"></div>' +
+          '<div class="falt"><span>Roll</span><input type="text" data-k="roll" value="' + esc(k.roll) + '" placeholder="T.ex. kommunikationschef"></div>' +
+          '<div class="falt"><span>Mejl</span><input type="email" data-k="mejl" value="' + esc(k.mejl) + '"></div>' +
+          '<div class="falt"><span>Telefon</span><input type="text" data-k="telefon" value="' + esc(k.telefon) + '"></div>' +
+          '<div class="falt" style="grid-column:1 / -1"><span>Företag <span style="font-weight:400;color:var(--dampad)">– om annat än artikelns bolag</span></span><input type="text" data-k="foretag" value="' + esc(k.foretag) + '"></div>' +
+        '</div>' +
+      '</details>' +
       '</div>';
   }
+
+  // Kort rad som visar det som är ifyllt; klick fäller ut fälten
+  function sammanfattningHtml(k) {
+    return '<summary><span class="sammanfattning">' + esc(sammanfattningText(k)) + '</span><span class="andra-lank">Ändra</span></summary>';
+  }
+  function sammanfattningText(k) {
+    var delar = [k.namn, k.roll, k.mejl, k.telefon, k.foretag].filter(function (v) { return v && String(v).trim(); });
+    return delar.length ? delar.join(' · ') : 'Ingen kontaktperson ifylld – klistra in ovan eller fyll i för hand';
+  }
+  function uppdateraSammanfattning(rot) {
+    var d = rot && $('.kontakt-detaljer', rot);
+    if (!d) return;
+    var v = function (sel) { var el = $(sel, d); return el ? el.value : ''; };
+    var k = {
+      namn: v('[data-k=namn],[data-f=kNamn]'), roll: v('[data-k=roll],[data-f=kRoll]'),
+      mejl: v('[data-k=mejl],[data-f=kMejl]'), telefon: v('[data-k=telefon],[data-f=kTel]'), foretag: v('[data-k=foretag]')
+    };
+    $('.sammanfattning', d).textContent = sammanfattningText(k);
+  }
+
   /* ----- Klistra in kontaktuppgifter i ett fält ----- */
 
   function klistraHtml() {
@@ -574,6 +598,7 @@
         if (efter) efter(el, tolkat[k]);
       }
     });
+    uppdateraSammanfattning(rot.closest('.kontakt, .kontakt-ruta') || rot);
     var info = $('.klistra-info', textarea.parentNode);
     if (info) info.textContent = textarea.value.trim()
       ? (ifyllda.length ? 'Ifyllt: ' + ifyllda.join(', ') + '. Kontrollera gärna.' : 'Hittade inget att fylla i – skriv in uppgifterna själv.')
@@ -582,6 +607,7 @@
 
   document.addEventListener('input', function (e) {
     var t = e.target;
+    if (t.closest && t.closest('.kontakt-detaljer')) { uppdateraSammanfattning(t.closest('.kontakt, .kontakt-ruta')); return; }
     if (!t.matches || !t.matches('[data-klistra]')) return;
     clearTimeout(t._tid);
     t._tid = setTimeout(function () {
@@ -591,7 +617,7 @@
         fyllKontakt(t, kontakt, { namn: '[data-k=namn]', roll: '[data-k=roll]', mejl: '[data-k=mejl]', telefon: '[data-k=telefon]', foretag: '[data-k=foretag]' });
       } else if (imp) {
         var rad = importRader[Number(imp.dataset.i)];
-        fyllKontakt(t, imp, { namn: '[data-f=kNamn]', roll: '[data-f=kRoll]', mejl: '[data-f=kMejl]', telefon: '[data-f=kTel]' }, function (el, v) { rad[el.dataset.f] = v; });
+        fyllKontakt(t, $('.kontakt-ruta', imp) || imp, { namn: '[data-f=kNamn]', roll: '[data-f=kRoll]', mejl: '[data-f=kMejl]', telefon: '[data-f=kTel]' }, function (el, v) { rad[el.dataset.f] = v; });
       } else if (t.closest('#dlg-lead')) {
         fyllKontakt(t, $('#dlg-lead'), { namn: '#l-namn', roll: '#l-roll', mejl: '#l-mejl', telefon: '#l-tel', foretag: '#l-foretag' });
       }
@@ -736,12 +762,15 @@
           '<div class="falt"><span>Typ</span><select data-f="typ">' + options(['Redaktionell', 'Betald'], r.typ) + '</select></div>' +
         '</div>' +
         '<div class="falt"><span>Bolag som nämns <span style="font-weight:400;color:var(--dampad)">– separera med komma</span></span><input type="text" data-f="bolag" value="' + esc(r.bolag) + '"></div>' +
-        '<div class="rutnat4" style="background:var(--yta2);border-radius:10px;padding:12px">' +
-          '<div style="grid-column:1 / -1">' + klistraHtml() + '</div>' +
-          '<div class="falt"><span>Kontaktperson</span><input type="text" data-f="kNamn" value="' + esc(r.kNamn) + '"></div>' +
-          '<div class="falt"><span>Roll</span><input type="text" data-f="kRoll" value="' + esc(r.kRoll) + '" placeholder="Marknad / kommunikation"></div>' +
-          '<div class="falt"><span>Mejl</span><input type="email" data-f="kMejl" value="' + esc(r.kMejl) + '"></div>' +
-          '<div class="falt"><span>Telefon</span><input type="text" data-f="kTel" value="' + esc(r.kTel) + '"></div>' +
+        '<div class="kontakt-ruta">' + klistraHtml() +
+          '<details class="kontakt-detaljer">' + sammanfattningHtml({ namn: r.kNamn, roll: r.kRoll, mejl: r.kMejl, telefon: r.kTel }) +
+            '<div class="rutnat4">' +
+              '<div class="falt"><span>Kontaktperson</span><input type="text" data-f="kNamn" value="' + esc(r.kNamn) + '"></div>' +
+              '<div class="falt"><span>Roll</span><input type="text" data-f="kRoll" value="' + esc(r.kRoll) + '" placeholder="Marknad / kommunikation"></div>' +
+              '<div class="falt"><span>Mejl</span><input type="email" data-f="kMejl" value="' + esc(r.kMejl) + '"></div>' +
+              '<div class="falt"><span>Telefon</span><input type="text" data-f="kTel" value="' + esc(r.kTel) + '"></div>' +
+            '</div>' +
+          '</details>' +
         '</div>' +
       '</div>';
     }).join('');

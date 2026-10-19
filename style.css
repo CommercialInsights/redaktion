@@ -140,10 +140,19 @@ dialog::backdrop { background: rgba(28,27,31,.45); }
 .segment button[aria-pressed="true"] { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 fieldset.kontakter { margin: 0; border: 1px solid var(--linje2); border-radius: 12px; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 12px; }
 fieldset.kontakter legend { padding: 0 6px; font-size: 13px; font-weight: 600; color: var(--text2); }
-.kontakt { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; padding-bottom: 12px; border-bottom: 1px dashed var(--linje2); }
+.kontakt { position: relative; display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; border-bottom: 1px dashed var(--linje2); }
 .kontakt:last-of-type { border-bottom: 0; padding-bottom: 0; }
 .kontakt .ta-bort { position: absolute; top: 22px; right: 0; width: 44px; justify-content: center; }
-.kontakt .klistra-falt { grid-column: 1 / -1; padding-right: 54px; }
+.kontakt .klistra-falt { padding-right: 54px; }
+.kontakt-ruta { background: var(--yta2); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.kontakt-detaljer { border: 1px solid var(--linje2); border-radius: 8px; background: #fff; }
+.kontakt-detaljer > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; font-size: 14px; min-height: 44px; }
+.kontakt-detaljer > summary::-webkit-details-marker { display: none; }
+.kontakt-detaljer .sammanfattning { color: var(--text2); overflow-wrap: anywhere; }
+.kontakt-detaljer .andra-lank { font-size: 13px; font-weight: 600; text-decoration: underline; color: var(--text2); white-space: nowrap; }
+.kontakt-detaljer[open] .andra-lank { visibility: hidden; }
+.kontakt-detaljer[open] > summary { border-bottom: 1px solid var(--linje2); }
+.kontakt-detaljer > .rutnat2, .kontakt-detaljer > .rutnat4 { padding: 12px; }
 .falt textarea.klistra { min-height: 64px; font-size: 14px; background: #F7F5FB; border-color: #D9CFEA; }
 .klistra-info:empty { display: none; }
 .streckad { align-self: flex-start; border-style: dashed; }
@@ -167,7 +176,6 @@ fieldset.kontakter legend { padding: 0 6px; font-size: 13px; font-weight: 600; c
 @media (max-width: 720px) {
   .sida { padding: 20px 16px 48px; }
   .rutnat2, .rutnat4 { grid-template-columns: 1fr; }
-  .kontakt { grid-template-columns: 1fr; }
   .pubval { grid-template-columns: 1fr; }
   .verktyg { align-items: stretch; }
 }
