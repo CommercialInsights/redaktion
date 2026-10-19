@@ -1,6 +1,14 @@
 // Inställningar för Redaktion + leads.
 // Här kan du ändra namn, format och mejlmallar utan att röra resten av koden.
 
+var MALLTEXT =
+  'Hej {fornamn}!\n\n' +
+  'Vill bara berätta att vi gjorde en kort summering på nyheten ni släppte {nar}: {url}\n' +
+  'Säg till om något ser konstigt ut.\n\n' +
+  'Om det är intressant tar jag och min kollega {kollega} gärna ett kort möte för att berätta vad vi erbjuder och kan hjälpa till med. ' +
+  'Vi söker bland annat bolag som vill bidra med krönikor på alla våra plattformar.\n\n' +
+  'Vänliga hälsningar\n{avsandare}';
+
 window.CONFIG = {
   // Webbappens URL från Apps Script (Implementera → Hantera implementeringar)
   WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbwWrUI3n6-lybzHv_d5rStkyjcplXP1bP1NZ0F2un5Zpdp5nFnnYaVRRXiMDrRGpkXHKw/exec',
@@ -24,19 +32,21 @@ window.CONFIG = {
   STEG: ['Möte bokat', 'Offert skickad', 'Affär', 'Annat / vilande'],
 
   // Mejlmallar per publikation. Platshållare:
-  // {fornamn} {namn} {foretag} {rubrik} {url} {avsandare}
+  // {fornamn} {namn} {foretag} {rubrik} {url} {avsandare} {kollega} {nar} {publikation}
+  //   {nar}     = "igår", "idag" eller "nyligen" beroende på publiceringsdatum
+  //   {kollega} = Kalle om Mikael skickar, annars Mikael
   MALLAR: {
     HO: {
-      amne: 'Ni nämns i Hållbar Omställning: {rubrik}',
-      text: 'Hej {fornamn},\n\nVi har publicerat en artikel i Hållbar Omställning där {foretag} nämns:\n\n{rubrik}\n{url}\n\nDela den gärna i era kanaler, till exempel på LinkedIn eller internt.\n\nVänliga hälsningar\n{avsandare}\nHållbar Omställning'
+      amne: 'Vi skrev om er nyhet: {rubrik}',
+      text: MALLTEXT
     },
     DM: {
-      amne: 'Ni nämns i Dagens Medarbetare: {rubrik}',
-      text: 'Hej {fornamn},\n\nVi har publicerat en artikel i Dagens Medarbetare där {foretag} nämns:\n\n{rubrik}\n{url}\n\nDela den gärna i era kanaler, till exempel på LinkedIn eller internt.\n\nVänliga hälsningar\n{avsandare}\nDagens Medarbetare'
+      amne: 'Vi skrev om er nyhet: {rubrik}',
+      text: MALLTEXT
     },
     DR: {
-      amne: 'Ni nämns i Dagens Rapport: {rubrik}',
-      text: 'Hej {fornamn},\n\nVi har publicerat en artikel i Dagens Rapport där {foretag} nämns:\n\n{rubrik}\n{url}\n\nDela den gärna i era kanaler, till exempel på LinkedIn eller internt.\n\nVänliga hälsningar\n{avsandare}\nDagens Rapport'
+      amne: 'Vi skrev om er nyhet: {rubrik}',
+      text: MALLTEXT
     }
   }
 };

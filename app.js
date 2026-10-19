@@ -543,13 +543,22 @@
     return '<div class="siffra"><div class="etikett">' + esc(etikett) + '</div><div class="tal">' + esc(tal) + '</div>' + (under ? '<div class="under">' + esc(under) + '</div>' : '') + '</div>';
   }
 
+  function narText(datum) {
+    if (!datum) return 'nyligen';
+    var dagar = Math.round((new Date(idag() + 'T12:00:00') - new Date(datum + 'T12:00:00')) / 86400000);
+    return dagar === 0 ? 'idag' : dagar === 1 ? 'igår' : 'nyligen';
+  }
+
   function mejla(l) {
     if (!l) return;
     var mall = C.MALLAR[l.publikation] || C.MALLAR.HO;
     var namn = String(l.kontaktNamn || '').trim();
     var ers = {
       fornamn: namn.split(/\s+/)[0] || '', namn: namn, foretag: l.foretag || '',
-      rubrik: l.artikelRubrik || '', url: l.url || '', avsandare: state.namn
+      rubrik: l.artikelRubrik || '', url: l.url || '', avsandare: state.namn,
+      kollega: state.namn === 'Mikael' ? 'Kalle' : 'Mikael',
+      publikation: (C.PUBLIKATIONER[l.publikation] || {}).namn || '',
+      nar: narText(l.publiceradDatum)
     };
     var fyll = function (s) { return s.replace(/\{(\w+)\}/g, function (_, k) { return ers[k] != null ? ers[k] : ''; }); };
     var till = encodeURIComponent(l.mejl || ''), amne = encodeURIComponent(fyll(mall.amne)), text = encodeURIComponent(fyll(mall.text));
