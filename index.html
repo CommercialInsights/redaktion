@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=202610191033">
+<link rel="stylesheet" href="style.css?v=202610191251">
 </head>
 <body>
 
@@ -39,6 +39,13 @@
     </div>
     <div class="anvandare">
       <span class="synk"><span id="synk-prick" class="prick laddar"></span><span id="synk-text">Hämtar…</span></span>
+      <label style="display:flex;align-items:center;gap:6px">Mejl i
+        <select id="mejlval" style="min-height:32px;border:1px solid var(--kant);border-radius:8px;padding:0 6px;background:#fff;font-size:13px">
+          <option value="gmail">Gmail</option>
+          <option value="outlook">Outlook (webb)</option>
+          <option value="mailto">Mejlprogram</option>
+        </select>
+      </label>
       <span>Inloggad som <strong id="vem"></strong></span>
       <button id="logga-ut" class="lank-knapp" type="button">Byt</button>
     </div>
@@ -211,8 +218,8 @@
 
 <div id="toast" class="toast dold" role="status" aria-live="polite"></div>
 
-<script src="config.js?v=202610191033"></script>
-<script src="kontakt-parser.js?v=202610191033"></script>
-<script src="app.js?v=202610191033"></script>
+<script src="config.js?v=202610191251"></script>
+<script src="kontakt-parser.js?v=202610191251"></script>
+<script src="app.js?v=202610191251"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@
   'use strict';
 
   var C = window.CONFIG;
-  var LS_KOD = 'redaktion.kod', LS_NAMN = 'redaktion.namn', LS_FILTER = 'redaktion.filter';
+  var LS_KOD = 'redaktion.kod', LS_NAMN = 'redaktion.namn', LS_FILTER = 'redaktion.filter', LS_MEJL = 'redaktion.mejl';
 
   var state = {
     kod: lasLokalt(LS_KOD),
@@ -77,6 +77,84 @@
     if (Array.isArray(a.kontakter)) return a.kontakter;
     try { var k = JSON.parse(a.kontakter || '[]'); return Array.isArray(k) ? k : []; } catch (e) { return []; }
   }
+  /* Gissar avsändande bolag ur rubriken. Kända bolag (som redan finns i systemet) prioriteras. */
+  var STARTORD = ('nästan fler färre kraftigt kraftig ny nya nytt så här därför hon han de det den vi allt alla mer mindre stor stora stort ' +
+    'ökat ökad ökade ökar minskat minskad minskar rekord rekordmånga över under efter inför när varför hur vad svenska svensk svenskt ' +
+    'sverige sveriges kina kinas eu eu:s regeringen forskare forskning ett en var varannan varje många få nu i på med för till från om ' +
+    'bara hela första andra tredje unik unika ledare chefer medarbetare anställda jobb kvinnor män unga äldre studenter företag företagen ' +
+    'hållbar grön gröna digital digitala dags se läs krönika debatt intervju podd nyhet tre snabba').split(' ');
+  var BESKRIVNING = /(jätten|bolaget|företaget|koncernen|kedjan|tillverkaren|gruppen|startupen|konsulten|byrån|aktören|leverantören|operatören)$/i;
+  var SUFFIX = /(forskare|forskarna|anställda|medarbetare|chefen)$/;
+
+  function kandaBolag() {
+    var namn = {};
+    state.data.artiklar.forEach(function (a) { String(a.bolag || '').split(',').forEach(function (b) { b = b.trim(); if (b.length > 1) namn[b] = 1; }); });
+    state.data.leads.forEach(function (l) { if (l.foretag && String(l.foretag).length > 1) namn[String(l.foretag).trim()] = 1; });
+    state.data.varma.forEach(function (v) { if (v.foretag && String(v.foretag).length > 1) namn[String(v.foretag).trim()] = 1; });
+    return Object.keys(namn);
+  }
+
+  function gissaBolag(rubrik) {
+    rubrik = String(rubrik || '').trim();
+    if (!rubrik) return '';
+    // 1. Kända bolag i rubriken (längsta träffen vinner)
+    var kanda = kandaBolag().filter(function (b) {
+      var re = new RegExp('(^|[^\\wåäöÅÄÖ])' + b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?([^\\wåäöÅÄÖ]|$)');
+      return re.test(rubrik);
+    }).sort(function (a, b) { return b.length - a.length; });
+    if (kanda.length) return kanda[0];
+
+    // 2. Inledande namn i rubriken
+    var ord = rubrik.split(/\s+/).map(function (o) { return o.replace(/^[«"“'(]+|[»"”'),:;!?]+$/g, ''); });
+    var i = 0;
+    if (ord[0] && BESKRIVNING.test(ord[0]) && ord[1] && /^[A-ZÅÄÖ0-9]/.test(ord[1])) i = 1;
+    var forsta = ord[i] || '';
+    if (!forsta || /^\d/.test(forsta) || STARTORD.indexOf(forsta.toLowerCase()) >= 0) return '';
+    var run = [];
+    for (var j = i; j < ord.length && run.length < 4; j++) {
+      var o = ord[j];
+      if (!o || o === '–' || o === '-' || o === '—') break;
+      var stor = /^[A-ZÅÄÖ0-9]/.test(o) || /[a-zåäö][A-ZÅÄÖ]/.test(o);
+      if (run.length && !(stor || o === '&')) break;
+      if (!run.length && !stor) return '';
+      run.push(o);
+      if (run.length === 1 && SUFFIX.test(o)) { run[0] = o.replace(SUFFIX, ''); break; }
+    }
+    if (run[run.length - 1] === '&') run.pop();
+    var namn = run.join(' ').replace(/s$/, function (m) { return run.length === 1 && /[^s]s$/.test(run[0]) && run[0].length > 4 && /^[A-ZÅÄÖ][a-zåäö]+s$/.test(run[0]) ? '' : m; });
+    if (namn.length < 2 || STARTORD.indexOf(namn.toLowerCase()) >= 0) return '';
+    return namn;
+  }
+
+  function toastAngra(text, angra) {
+    var t = $('#toast');
+    t.innerHTML = esc(text) + ' <button type="button" style="margin-left:10px;background:none;border:1px solid rgba(255,255,255,.6);color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600">Ångra</button>';
+    t.className = 'toast';
+    t.querySelector('button').onclick = function () { t.className = 'toast dold'; angra(); };
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = 'toast dold'; }, 7000);
+  }
+
+  // Tar bort direkt och erbjuder Ångra (lägger tillbaka samma rad)
+  function taBortMedAngra(tabell, id, text) {
+    var rad = hitta(tabell, id);
+    if (!rad) return;
+    var kopia = Object.assign({}, rad);
+    state.data[tabell] = state.data[tabell].filter(function (r) { return String(r.id) !== String(id); });
+    rita();
+    api('delete', { tabell: tabell, id: id }).then(function () {
+      toastAngra(text, function () {
+        api('add', { tabell: tabell, rad: kopia }).then(function () { state.data[tabell].push(kopia); rita(); toast('Återställd'); })
+          .catch(function (e) { toast('Kunde inte återställa: ' + e.message, true); });
+      });
+    }).catch(function (e) { state.data[tabell].push(kopia); rita(); toast('Kunde inte ta bort: ' + e.message, true); });
+  }
+
+  function kontaktText(k) {
+    if (!k) return '';
+    return [k.namn, k.roll].filter(Boolean).join(', ');
+  }
+
   function options(lista, valt) {
     return lista.map(function (v) { return '<option' + (v === valt ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('');
   }
@@ -167,6 +245,8 @@
   });
 
   $('#logga-ut').addEventListener('click', function () { loggaUt(''); });
+  $('#mejlval').value = lasLokalt(LS_MEJL) || 'gmail';
+  $('#mejlval').addEventListener('change', function () { sparaLokalt(LS_MEJL, this.value); toast('Mejlutkast öppnas nu i ' + this.options[this.selectedIndex].text); });
 
   function starta() {
     $('#inlogg').classList.add('dold');
@@ -297,7 +377,7 @@
     var forstaPub = lista.findIndex(arPub);
     var rader = lista.map(function (a, i) {
       var skiljerad = (i === forstaPub && i > 0)
-        ? '<tr><td colspan="10" style="background:var(--yta2);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dampad);padding:10px 12px">Publicerade</td></tr>'
+        ? '<tr><td colspan="11" style="background:var(--yta2);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dampad);padding:10px 12px">Publicerade</td></tr>'
         : '';
       var datum = a.planeratDatum || a.publiceradDatum;
       var vecka = isoVecka(datum);
@@ -314,8 +394,11 @@
         '<td style="white-space:nowrap"><div class="mono underrad">' + (vecka ? 'v.' + vecka : '') + '</div><div style="font-weight:500">' + kortDatum(datum) + '</div></td>' +
         '<td>' + pubBadge(a.publikation) + '</td>' +
         '<td>' + (a.typ === 'Betald' ? '<span class="typ-betald">Betald</span>' : '<span class="typ-red">Redaktionell</span>') + '</td>' +
-        '<td class="rubrik">' + rubrik + (kontakter.length ? '<div class="underrad">' + esc(kontakter.map(function (k) { return k.namn; }).filter(Boolean).join(', ')) + '</div>' : '') + '</td>' +
-        '<td>' + esc(a.bolag || a.kundAmne || '') + '</td>' +
+        '<td class="rubrik">' + rubrik + '</td>' +
+        '<td>' + bolagCell(a) + '</td>' +
+        '<td style="min-width:170px">' + (kontakter.length
+          ? '<div style="font-weight:500">' + esc(kontakter[0].namn || '–') + '</div><div class="underrad">' + esc(kontakter[0].roll || '') + (kontakter.length > 1 ? ' · +' + (kontakter.length - 1) : '') + '</div>'
+          : '<button type="button" class="radlank underrad" data-redigera="' + esc(a.id) + '" style="font-weight:400">Lägg till</button>') + '</td>' +
         '<td>' + esc(a.format || '') + '</td>' +
         '<td>' + esc(a.ansvarig || '') + '</td>' +
         '<td><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select></td>' +
@@ -323,10 +406,17 @@
         '</tr>';
     }).join('');
 
-    var html = '<div class="tabellram"><table style="min-width:1080px"><thead><tr>' +
-      '<th class="c">Klar</th><th>Vecka / datum</th><th>Pub.</th><th>Typ</th><th>Rubrik</th><th>Kund / bolag</th><th>Format</th><th>Ansvarig</th><th>Status</th><th></th>' +
-      '</tr></thead><tbody>' + (rader || '<tr><td colspan="10" class="tom">Inga artiklar här än. Lägg till med <strong>+ Ny artikel</strong> eller <strong>Klistra in flera</strong>.</td></tr>') + '</tbody></table></div>';
+    var html = '<div class="tabellram"><table style="min-width:1200px"><thead><tr>' +
+      '<th class="c">Klar</th><th>Vecka / datum</th><th>Pub.</th><th>Typ</th><th>Rubrik</th><th>Bolag</th><th>PR / marknad</th><th>Format</th><th>Ansvarig</th><th>Status</th><th></th>' +
+      '</tr></thead><tbody>' + (rader || '<tr><td colspan="11" class="tom">Inga artiklar här än. Lägg till med <strong>+ Ny artikel</strong> eller <strong>Klistra in flera</strong>.</td></tr>') + '</tbody></table></div>';
     $('#innehall').innerHTML = html;
+  }
+
+  // Bolag: sparat värde, annars en gissning ur rubriken (grå, med frågetecken)
+  function bolagCell(a) {
+    if (a.bolag || a.kundAmne) return esc(a.bolag || a.kundAmne);
+    var g = gissaBolag(a.rubrik);
+    return g ? '<span class="underrad" title="Gissat ur rubriken – spara genom att redigera artikeln">' + esc(g) + '?</span>' : '';
   }
 
   $('#innehall').addEventListener('change', function (e) {
@@ -355,7 +445,7 @@
   });
 
   $('#innehall').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-redigera],[data-tillleads],[data-leadred],[data-tillvarm],[data-varmred],[data-mejl],[data-logga]');
+    var b = e.target.closest('[data-redigera],[data-tillleads],[data-leadred],[data-tillvarm],[data-varmred],[data-mejl],[data-logga],[data-taborta],[data-tabortl]');
     if (!b) return;
     if (b.dataset.redigera) oppnaArtikel(hitta('artiklar', b.dataset.redigera));
     if (b.dataset.logga) oppnaArtikel(hitta('artiklar', b.dataset.logga));
@@ -364,6 +454,8 @@
     if (b.dataset.tillvarm) tillVarm(b.dataset.tillvarm, b);
     if (b.dataset.varmred) oppnaVarm(hitta('varma', b.dataset.varmred));
     if (b.dataset.mejl) mejla(hitta('leads', b.dataset.mejl));
+    if (b.dataset.taborta) { var ta = hitta('artiklar', b.dataset.taborta); taBortMedAngra('artiklar', b.dataset.taborta, 'Artikeln "' + ((ta && ta.rubrik) || '').slice(0, 40) + '" är borttagen'); }
+    if (b.dataset.tabortl) { var tl = hitta('leads', b.dataset.tabortl); taBortMedAngra('leads', b.dataset.tabortl, 'Leaden ' + ((tl && tl.foretag) || '') + ' är borttagen'); }
   });
 
   function hitta(tabell, id) {
@@ -375,7 +467,9 @@
     if (!a) return;
     if (!kontakterAv(a).length && !confirm('Artikeln har ingen kontaktperson än. Skicka vidare ändå? Då skapas en tom rad att fylla i på Leads-fliken.')) return;
     knapp.disabled = true;
-    api('tillLeads', { id: id }).then(function (svar) {
+    var gissat = !a.bolag && !a.kundAmne ? gissaBolag(a.rubrik) : '';
+    var forst = gissat ? api('update', { tabell: 'artiklar', id: id, andringar: { bolag: gissat } }).then(function () { a.bolag = gissat; }) : Promise.resolve();
+    forst.then(function () { return api('tillLeads', { id: id }); }).then(function (svar) {
       a.tillLeads = true;
       state.data.leads = state.data.leads.concat(svar.rader);
       rita();
@@ -410,8 +504,10 @@
         vantar.map(function (a) {
           var k = kontakterAv(a);
           return '<div class="vantar-rad"><div>' + pubBadge(a.publikation) + ' <strong>' + esc(a.rubrik) + '</strong>' +
-            '<div class="underrad">' + (k.length ? esc(k.map(function (x) { return x.namn; }).join(', ')) : 'Ingen kontaktperson än') + ' · ' + esc(a.ansvarig || '') + '</div></div>' +
-            '<div class="knapprad"><button type="button" class="knapp liten" data-logga="' + esc(a.id) + '">' + (k.length ? 'Redigera' : 'Lägg till kontakt') + '</button>' +
+            '<div class="underrad" style="font-size:13px;margin-top:3px"><strong style="color:var(--text2)">' + bolagCell(a) + '</strong>' +
+            (bolagCell(a) ? ' · ' : '') + (k.length ? esc(k.map(kontaktText).join(' / ')) : 'Ingen kontaktperson än') + ' · ' + esc(a.ansvarig || '') + '</div></div>' +
+            '<div class="knapprad"><button type="button" class="knapp liten fara" data-taborta="' + esc(a.id) + '" title="Ta bort artikeln">Ta bort</button>' +
+            '<button type="button" class="knapp liten" data-logga="' + esc(a.id) + '">' + (k.length ? 'Redigera' : 'Lägg till kontakt') + '</button>' +
             '<button type="button" class="knapp liten primar" data-tillleads="' + esc(a.id) + '">→ Leads</button></div></div>';
         }).join('') + '</section>';
     }
@@ -432,7 +528,7 @@
         '<td><div>' + esc(l.kontaktNamn || '–') + '</div><div class="underrad">' + esc(l.kontaktRoll || '') + (l.mejl ? ' · ' + esc(l.mejl) : '') + (l.telefon ? ' · ' + esc(l.telefon) : '') + '</div></td>' +
         bock('meddelad', 'Meddelad') + bock('linkedin', 'LinkedIn gjort') + bock('ringt', 'Ringt') + bock('mejlat', 'Mejlat') +
         '<td>' + esc(l.ansvarig || '') + '</td>' +
-        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button>' + varm + '</div></td>' +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button>' + varm + '<button type="button" class="knapp liten fara" data-tabortl="' + esc(l.id) + '" aria-label="Ta bort lead" title="Ta bort lead">×</button></div></td>' +
         '</tr>';
     }).join('');
 
@@ -456,8 +552,11 @@
       rubrik: l.artikelRubrik || '', url: l.url || '', avsandare: state.namn
     };
     var fyll = function (s) { return s.replace(/\{(\w+)\}/g, function (_, k) { return ers[k] != null ? ers[k] : ''; }); };
-    var lank = 'mailto:' + encodeURIComponent(l.mejl || '') + '?subject=' + encodeURIComponent(fyll(mall.amne)) + '&body=' + encodeURIComponent(fyll(mall.text));
-    window.location.href = lank;
+    var till = encodeURIComponent(l.mejl || ''), amne = encodeURIComponent(fyll(mall.amne)), text = encodeURIComponent(fyll(mall.text));
+    var val = lasLokalt(LS_MEJL) || 'gmail';
+    if (val === 'gmail') window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + till + '&su=' + amne + '&body=' + text, '_blank', 'noopener');
+    else if (val === 'outlook') window.open('https://outlook.office.com/mail/deeplink/compose?to=' + till + '&subject=' + amne + '&body=' + text, '_blank', 'noopener');
+    else window.location.href = 'mailto:' + till + '?subject=' + amne + '&body=' + text;
     if (!l.mejlat) {
       setTimeout(function () {
         if (confirm('Bocka i Mejlat och Meddelad för ' + (l.foretag || 'leaden') + '?')) andra('leads', l.id, { mejlat: true, meddelad: true });
@@ -666,6 +765,7 @@
       if (r.fel) { $('#a-hamta-info').textContent = r.fel + '. Fyll i uppgifterna själv.'; return; }
       if (r.publikation) { artikelPub = r.publikation; ritaPubVal(); }
       if (r.rubrik) $('#a-rubrik').value = r.rubrik;
+      if (r.rubrik && !$('#a-bolag').value.trim()) $('#a-bolag').value = gissaBolag(r.rubrik);
       if (r.publiceradDatum) { $('#a-pubdatum').value = r.publiceradDatum; if (!$('#a-datum').value) $('#a-datum').value = r.publiceradDatum; $('#a-status').value = 'Publicerad'; }
       $('#a-hamta-info').textContent = r.finnsRedan && !artikelRed ? 'Obs! Den här länken finns redan i planen.' : 'Hämtat. Kontrollera uppgifterna.';
     }).catch(function (e) { $('#a-hamta-info').textContent = 'Kunde inte hämta: ' + e.message; })
@@ -735,7 +835,7 @@
     $('#i-resultat').innerHTML = '<div class="hjalp">Hämtar ' + urls.length + ' artiklar…</div>';
     api('hamta', { urls: urls }).then(function (svar) {
       importRader = svar.artiklar.map(function (r) {
-        return Object.assign({ typ: 'Redaktionell', ansvarig: C.ANSVARIGA.indexOf(state.namn) >= 0 ? state.namn : C.ANSVARIGA[0] }, r);
+        return Object.assign({ typ: 'Redaktionell', ansvarig: C.ANSVARIGA.indexOf(state.namn) >= 0 ? state.namn : C.ANSVARIGA[0], bolag: gissaBolag(r.rubrik) }, r);
       });
       ritaImport();
     }).catch(function (e) { $('#i-resultat').innerHTML = '<div class="felmeddelande">Kunde inte hämta: ' + esc(e.message) + '</div>'; })

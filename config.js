@@ -9,7 +9,7 @@ window.CONFIG = {
   TEAM: ['Mikael', 'Kalle', 'Johan', 'Andreas'],
 
   // Vilka som kan stå som ansvariga för artiklar och leads
-  ANSVARIGA: ['Mikael', 'Kalle'],
+  ANSVARIGA: ['Mikael', 'Kalle', 'Johan'],
 
   PUBLIKATIONER: {
     HO: { namn: 'Hållbar Omställning', farg: '#1F6F5C' },
