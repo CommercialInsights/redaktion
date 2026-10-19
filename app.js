@@ -12,7 +12,7 @@
     namn: lasLokalt(LS_NAMN),
     data: { artiklar: [], leads: [], varma: [] },
     flik: 'plan',
-    filter: { pub: 'alla', doljKlara: false, ejMeddelade: false, mina: false },
+    filter: { pub: 'alla', doljKlara: false, ejMeddelade: false, mina: false, status: 'alla', sortering: 'status' },
     laddar: false
   };
   try { Object.assign(state.filter, JSON.parse(lasLokalt(LS_FILTER) || '{}')); } catch (e) {}
@@ -194,7 +194,17 @@
       html += '<button type="button" class="chip" data-pub="' + p + '" aria-pressed="' + (f.pub === p) + '"><span class="ruta" style="background:' + C.PUBLIKATIONER[p].farg + '"></span>' + p + '</button>';
     });
     html += '<span class="skiljare" aria-hidden="true"></span>';
-    if (state.flik === 'plan') html += '<button type="button" class="chip" data-vaxla="doljKlara" aria-pressed="' + f.doljKlara + '">Dölj klara</button>';
+    if (state.flik === 'plan') {
+      html += '<label class="dold" for="f-status">Status</label><select id="f-status" class="chip" data-valj="status" aria-label="Visa status">' +
+        '<option value="alla"' + (f.status === 'alla' ? ' selected' : '') + '>Alla statusar</option>' +
+        '<option value="ejpub"' + (f.status === 'ejpub' ? ' selected' : '') + '>Ej publicerade</option>' +
+        C.STATUS.map(function (s) { return '<option' + (f.status === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') +
+        '</select>' +
+        '<select class="chip" data-valj="sortering" aria-label="Sortera">' +
+        '<option value="status"' + (f.sortering === 'status' ? ' selected' : '') + '>Sortera: status</option>' +
+        '<option value="datum"' + (f.sortering === 'datum' ? ' selected' : '') + '>Sortera: datum</option>' +
+        '</select>';
+    }
     if (state.flik === 'leads') html += '<button type="button" class="chip" data-vaxla="ejMeddelade" aria-pressed="' + f.ejMeddelade + '">Ej meddelade</button>';
     html += '<button type="button" class="chip" data-vaxla="mina" aria-pressed="' + f.mina + '">Mina</button>';
     $('#filter').innerHTML = html;
@@ -211,7 +221,16 @@
     $('#handlingar').innerHTML = h;
   }
 
+  $('#filter').addEventListener('change', function (e) {
+    var s = e.target.closest('select[data-valj]');
+    if (!s) return;
+    state.filter[s.dataset.valj] = s.value;
+    sparaFilter();
+    rita();
+  });
+
   $('#filter').addEventListener('click', function (e) {
+    if (e.target.closest('select')) return;
     var b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.pub) state.filter.pub = b.dataset.pub;
@@ -255,15 +274,31 @@
   /* ----- Redaktionsplan ----- */
 
   function ritaPlan() {
+    var f = state.filter;
+    var arPub = function (a) { return a.klar || a.status === 'Publicerad'; };
     var lista = filtrera(state.data.artiklar);
-    if (state.filter.doljKlara) lista = lista.filter(function (a) { return !a.klar; });
+    if (f.status === 'ejpub') lista = lista.filter(function (a) { return !arPub(a); });
+    else if (f.status !== 'alla') lista = lista.filter(function (a) { return (a.status || 'Idé') === f.status; });
+
+    var datumAv = function (a) { return a.planeratDatum || a.publiceradDatum || ''; };
+    var statusIndex = function (a) { var i = C.STATUS.indexOf(a.status || 'Idé'); return i < 0 ? 0 : i; };
     lista.sort(function (a, b) {
-      var da = a.planeratDatum || a.publiceradDatum || '9999', db = b.planeratDatum || b.publiceradDatum || '9999';
-      if (a.klar !== b.klar) return a.klar ? 1 : -1;
-      return da < db ? -1 : da > db ? 1 : 0;
+      // Ej publicerade alltid överst
+      if (arPub(a) !== arPub(b)) return arPub(a) ? 1 : -1;
+      if (arPub(a)) {
+        // Publicerade: senaste först
+        return String(b.publiceradDatum || datumAv(b)).localeCompare(String(a.publiceradDatum || datumAv(a)));
+      }
+      if (f.sortering === 'status' && statusIndex(a) !== statusIndex(b)) return statusIndex(b) - statusIndex(a);
+      // Närmast datum först, utan datum sist
+      return String(datumAv(a) || '9999').localeCompare(String(datumAv(b) || '9999'));
     });
 
-    var rader = lista.map(function (a) {
+    var forstaPub = lista.findIndex(arPub);
+    var rader = lista.map(function (a, i) {
+      var skiljerad = (i === forstaPub && i > 0)
+        ? '<tr><td colspan="10" style="background:var(--yta2);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dampad);padding:10px 12px">Publicerade</td></tr>'
+        : '';
       var datum = a.planeratDatum || a.publiceradDatum;
       var vecka = isoVecka(datum);
       var rubrik = saker_url(a.url)
@@ -274,7 +309,7 @@
       if (a.typ === 'Betald') vidare = '<span class="underrad">Betald</span>';
       else if (a.tillLeads) vidare = '<span class="klart-markering">I Leads ✓</span>';
       else vidare = '<button type="button" class="knapp liten" data-tillleads="' + esc(a.id) + '">→ Leads</button>';
-      return '<tr class="' + (a.klar ? 'klar' : '') + '">' +
+      return skiljerad + '<tr class="' + (a.klar ? 'klar' : '') + '">' +
         '<td class="c"><input type="checkbox" data-klar="' + esc(a.id) + '" aria-label="Markera som klar"' + (a.klar ? ' checked' : '') + '></td>' +
         '<td style="white-space:nowrap"><div class="mono underrad">' + (vecka ? 'v.' + vecka : '') + '</div><div style="font-weight:500">' + kortDatum(datum) + '</div></td>' +
         '<td>' + pubBadge(a.publikation) + '</td>' +
