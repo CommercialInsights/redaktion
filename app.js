@@ -545,6 +545,7 @@
   function kontaktHtml(k) {
     k = k || {};
     return '<div class="kontakt">' +
+      klistraHtml() +
       '<div class="falt"><span>Namn</span><input type="text" data-k="namn" value="' + esc(k.namn) + '"></div>' +
       '<div class="falt"><span>Roll</span><input type="text" data-k="roll" value="' + esc(k.roll) + '" placeholder="T.ex. kommunikationschef"></div>' +
       '<button type="button" class="knapp liten ta-bort" aria-label="Ta bort kontakt" title="Ta bort kontakt">×</button>' +
@@ -553,6 +554,50 @@
       '<div class="falt" style="grid-column:1 / -1"><span>Företag <span style="font-weight:400;color:var(--dampad)">– om annat än artikelns bolag</span></span><input type="text" data-k="foretag" value="' + esc(k.foretag) + '"></div>' +
       '</div>';
   }
+  /* ----- Klistra in kontaktuppgifter i ett fält ----- */
+
+  function klistraHtml() {
+    return '<div class="falt klistra-falt"><span>Klistra in kontaktuppgifter <span style="font-weight:400;color:var(--dampad)">– signatur eller rad ur pressmeddelande, fälten fylls i själva</span></span>' +
+      '<textarea class="klistra" data-klistra rows="2" placeholder="T.ex. Anna Andersson, kommunikationschef, 070-123 45 67, anna@foretag.se"></textarea>' +
+      '<span class="hjalp klistra-info" aria-live="polite"></span></div>';
+  }
+
+  // Fyller fälten i "rot" utifrån den inklistrade texten. falt = { namn: selector, roll: ..., mejl: ..., telefon: ..., foretag: ... }
+  function fyllKontakt(textarea, rot, falt, efter) {
+    var tolkat = window.tolkaKontakt(textarea.value);
+    var ifyllda = [];
+    Object.keys(falt).forEach(function (k) {
+      var el = $(falt[k], rot);
+      if (el && tolkat[k]) {
+        el.value = tolkat[k];
+        ifyllda.push({ namn: 'namn', roll: 'roll', mejl: 'mejl', telefon: 'telefon', foretag: 'företag' }[k]);
+        if (efter) efter(el, tolkat[k]);
+      }
+    });
+    var info = $('.klistra-info', textarea.parentNode);
+    if (info) info.textContent = textarea.value.trim()
+      ? (ifyllda.length ? 'Ifyllt: ' + ifyllda.join(', ') + '. Kontrollera gärna.' : 'Hittade inget att fylla i – skriv in uppgifterna själv.')
+      : '';
+  }
+
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t.matches || !t.matches('[data-klistra]')) return;
+    clearTimeout(t._tid);
+    t._tid = setTimeout(function () {
+      var kontakt = t.closest('.kontakt');
+      var imp = t.closest('[data-i]');
+      if (kontakt) {
+        fyllKontakt(t, kontakt, { namn: '[data-k=namn]', roll: '[data-k=roll]', mejl: '[data-k=mejl]', telefon: '[data-k=telefon]', foretag: '[data-k=foretag]' });
+      } else if (imp) {
+        var rad = importRader[Number(imp.dataset.i)];
+        fyllKontakt(t, imp, { namn: '[data-f=kNamn]', roll: '[data-f=kRoll]', mejl: '[data-f=kMejl]', telefon: '[data-f=kTel]' }, function (el, v) { rad[el.dataset.f] = v; });
+      } else if (t.closest('#dlg-lead')) {
+        fyllKontakt(t, $('#dlg-lead'), { namn: '#l-namn', roll: '#l-roll', mejl: '#l-mejl', telefon: '#l-tel', foretag: '#l-foretag' });
+      }
+    }, 250);
+  });
+
   $('#a-ny-kontakt').addEventListener('click', function () {
     $('#a-kontakter').insertAdjacentHTML('beforeend', kontaktHtml({}));
   });
@@ -692,6 +737,7 @@
         '</div>' +
         '<div class="falt"><span>Bolag som nämns <span style="font-weight:400;color:var(--dampad)">– separera med komma</span></span><input type="text" data-f="bolag" value="' + esc(r.bolag) + '"></div>' +
         '<div class="rutnat4" style="background:var(--yta2);border-radius:10px;padding:12px">' +
+          '<div style="grid-column:1 / -1">' + klistraHtml() + '</div>' +
           '<div class="falt"><span>Kontaktperson</span><input type="text" data-f="kNamn" value="' + esc(r.kNamn) + '"></div>' +
           '<div class="falt"><span>Roll</span><input type="text" data-f="kRoll" value="' + esc(r.kRoll) + '" placeholder="Marknad / kommunikation"></div>' +
           '<div class="falt"><span>Mejl</span><input type="email" data-f="kMejl" value="' + esc(r.kMejl) + '"></div>' +
@@ -741,6 +787,7 @@
     if (!l) return;
     leadRed = l;
     $('#l-artikel').innerHTML = (l.artikelRubrik ? 'Från: <strong>' + esc(l.artikelRubrik) + '</strong>' : '');
+    $('#l-klistra').innerHTML = klistraHtml();
     $('#l-foretag').value = l.foretag || '';
     $('#l-namn').value = l.kontaktNamn || '';
     $('#l-roll').value = l.kontaktRoll || '';
