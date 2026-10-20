@@ -402,7 +402,8 @@
         '<td>' + esc(a.format || '') + '</td>' +
         '<td>' + esc(a.ansvarig || '') + '</td>' +
         '<td><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select></td>' +
-        '<td style="white-space:nowrap">' + vidare + '</td>' +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap">' + vidare +
+          '<button type="button" class="knapp liten fara" data-taborta="' + esc(a.id) + '" aria-label="Ta bort artikel" title="Ta bort artikel">×</button></div></td>' +
         '</tr>';
     }).join('');
 
@@ -813,12 +814,9 @@
   });
 
   $('#a-ta-bort').addEventListener('click', function () {
-    if (!artikelRed || !confirm('Ta bort "' + (artikelRed.rubrik || 'artikeln') + '"? Leads som redan skapats ligger kvar.')) return;
-    var id = artikelRed.id;
-    api('delete', { tabell: 'artiklar', id: id }).then(function () {
-      state.data.artiklar = state.data.artiklar.filter(function (a) { return String(a.id) !== String(id); });
-      $('#dlg-artikel').close(); rita(); toast('Borttagen');
-    }).catch(function (err) { toast(err.message, true); });
+    if (!artikelRed) return;
+    $('#dlg-artikel').close();
+    taBortMedAngra('artiklar', artikelRed.id, 'Artikeln "' + (artikelRed.rubrik || '').slice(0, 40) + '" är borttagen');
   });
 
   /* ----- Klistra in flera ----- */
