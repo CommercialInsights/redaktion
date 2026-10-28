@@ -69,6 +69,42 @@ function setup() {
   SpreadsheetApp.getActive().toast('Klart! Flikarna är skapade.');
 }
 
+/**
+ * Spara inloggningen till WordPress (applikationslösenord) för publiceringsverktyget.
+ * Kör den här funktionen. Lösenorden sparas i Script Properties och syns aldrig på GitHub
+ * eller i webbläsaren. Tryck Avbryt för en sajt du inte vill ändra.
+ */
+function sparaWordPress() {
+  var ui = SpreadsheetApp.getUi();
+  var props = PropertiesService.getScriptProperties();
+  var sparade = [];
+  Object.keys(WP_SAJTER).forEach(function (s) {
+    var namn = WP_SAJTER[s].namn;
+    var u = ui.prompt(namn + ' – användarnamn', 'Användarnamnet på WordPress-kontot (t.ex. Redaktor). Avbryt = hoppa över ' + namn + '.', ui.ButtonSet.OK_CANCEL);
+    if (u.getSelectedButton() !== ui.Button.OK || !u.getResponseText().trim()) return;
+    var l = ui.prompt(namn + ' – applikationslösenord', 'Klistra in applikationslösenordet för ' + u.getResponseText().trim() + '.', ui.ButtonSet.OK_CANCEL);
+    if (l.getSelectedButton() !== ui.Button.OK || !l.getResponseText().trim()) return;
+    props.setProperty('WP_' + s.toUpperCase() + '_USER', u.getResponseText().trim());
+    props.setProperty('WP_' + s.toUpperCase() + '_PASS', l.getResponseText().trim());
+    sparade.push(namn);
+  });
+  ui.alert(sparade.length ? 'Sparat för: ' + sparade.join(', ') + '.' : 'Inget ändrades.');
+}
+
+/** Testar inloggningen mot alla sajter. Kör den efter sparaWordPress. */
+function testaWordPress() {
+  var rader = Object.keys(WP_SAJTER).map(function (s) {
+    var a = wpAuth_(s);
+    if (!a) return WP_SAJTER[s].namn + ': ingen inloggning sparad';
+    var r = UrlFetchApp.fetch(WP_SAJTER[s].api + '/users/me?context=edit', { headers: { Authorization: a }, muteHttpExceptions: true });
+    var k = r.getResponseCode();
+    if (k !== 200) return WP_SAJTER[s].namn + ': FEL (' + k + ')';
+    var u = JSON.parse(r.getContentText());
+    return WP_SAJTER[s].namn + ': OK – ' + u.name + ' (' + (u.roles || []).join(', ') + ')';
+  });
+  SpreadsheetApp.getUi().alert(rader.join('\n'));
+}
+
 /** Byt teamkod i efterhand: kör den här funktionen. */
 function bytTeamkod() {
   var ui = SpreadsheetApp.getUi();
@@ -108,6 +144,7 @@ function hantera_(req) {
       case 'tillLeads': return svara_({ ok: true, rader: medLas_(function () { return tillLeads_(req.id); }) });
       case 'tillVarm': return svara_({ ok: true, rad: medLas_(function () { return tillVarm_(req.id, req.steg); }) });
       case 'hamta': return svara_({ ok: true, artiklar: hamtaMeta_(req.urls || []) });
+      case 'publicera': return svara_(publicera_(req));
       default: return svara_({ ok: false, fel: 'Okänd åtgärd' });
     }
   } catch (err) {
@@ -327,4 +364,115 @@ function rensa_(s) {
     .replace(/&#8217;|&rsquo;/g, '’').replace(/&#8220;|&#8221;|&ldquo;|&rdquo;/g, '"')
     .replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(n); })
     .replace(/\s+/g, ' ').trim();
+}
+
+
+/* ============================== PUBLICERA TILL WORDPRESS ============================== */
+/* Publiceringsverktyget (rapportering/publicera.html) skickar artiklar hit. Lösenorden till
+ * WordPress ligger i Script Properties (kör sparaWordPress) och lämnar aldrig Google. */
+
+var WP_SAJTER = {
+  ho: { namn: 'Hållbar Omställning', api: 'https://hallbaromstallning.se/wp-json/wp/v2', pub: 'HO' },
+  dm: { namn: 'Dagens Medarbetare', api: 'https://dagensmedarbetare.se/wp-json/wp/v2', pub: 'DM' },
+  dr: { namn: 'Dagens Rapport', api: 'https://dagensrapport.se/wp-json/wp/v2', pub: 'DR' }
+};
+var WP_ENDPOINTS = ['posts', 'featured-article', 'quick-three', 'chronicle', 'report', 'tre-snabba'];
+
+function wpAuth_(sajt) {
+  var p = PropertiesService.getScriptProperties();
+  var u = p.getProperty('WP_' + sajt.toUpperCase() + '_USER');
+  var l = p.getProperty('WP_' + sajt.toUpperCase() + '_PASS');
+  return (u && l) ? 'Basic ' + Utilities.base64Encode(u + ':' + l, Utilities.Charset.UTF_8) : '';
+}
+
+function wpFetch_(sajt, sokvag, opt) {
+  opt = opt || {};
+  var params = {
+    method: opt.method || 'get',
+    headers: Object.assign({ Authorization: wpAuth_(sajt) }, opt.headers || {}),
+    muteHttpExceptions: true
+  };
+  if (opt.json !== undefined) { params.contentType = 'application/json'; params.payload = JSON.stringify(opt.json); }
+  if (opt.blob) { params.payload = opt.blob; params.contentType = opt.blob.getContentType(); }
+  var r = UrlFetchApp.fetch(WP_SAJTER[sajt].api + sokvag, params);
+  var kod = r.getResponseCode(), text = r.getContentText(), data = null;
+  try { data = JSON.parse(text); } catch (e) {}
+  if (kod >= 300) {
+    var msg = (data && data.message) ? data.message : text.slice(0, 200);
+    throw new Error(WP_SAJTER[sajt].namn + ' svarade ' + kod + ': ' + msg);
+  }
+  return data;
+}
+
+/**
+ * req: { sajt: 'ho'|'dm'|'dr', endpoint, post: {...WordPress-fält},
+ *        bild: { namn, typ, data (base64), titel, alt, bildtext },
+ *        bolag: 'Namn' (bara DR: hämtas eller skapas),
+ *        redaktion: { ...rad till Redaktionsplan } }
+ */
+function publicera_(req) {
+  var sajt = req.sajt;
+  if (!WP_SAJTER[sajt]) return { ok: false, fel: 'Okänd sajt' };
+  if (WP_ENDPOINTS.indexOf(req.endpoint) < 0) return { ok: false, fel: 'Okänt format' };
+  if (!wpAuth_(sajt)) return { ok: false, fel: 'Inloggningen till ' + WP_SAJTER[sajt].namn + ' saknas. Mikael: kör sparaWordPress i Apps Script.' };
+
+  var post = req.post || {};
+  var varningar = [];
+
+  // 1. Bild
+  if (req.bild && req.bild.data) {
+    try {
+      var blob = Utilities.newBlob(Utilities.base64Decode(req.bild.data), req.bild.typ || 'image/jpeg', req.bild.namn || 'bild.jpg');
+      var media = wpFetch_(sajt, '/media', {
+        method: 'post', blob: blob,
+        headers: { 'Content-Disposition': 'attachment; filename="' + String(req.bild.namn || 'bild.jpg').replace(/"/g, '') + '"' }
+      });
+      var upd = {};
+      if (req.bild.titel) { upd.title = req.bild.titel; upd.alt_text = req.bild.alt || req.bild.titel; }
+      if (req.bild.bildtext) upd.caption = req.bild.bildtext;
+      if (Object.keys(upd).length) { try { wpFetch_(sajt, '/media/' + media.id, { method: 'post', json: upd }); } catch (e) {} }
+      post.featured_media = media.id;
+    } catch (e) {
+      varningar.push('Bilden kunde inte laddas upp: ' + e.message);
+    }
+  }
+
+  // 2. Bolag (Dagens Rapport)
+  if (sajt === 'dr' && req.bolag) {
+    try {
+      var hitt = wpFetch_(sajt, '/bolag?per_page=20&search=' + encodeURIComponent(req.bolag)) || [];
+      var term = hitt.filter(function (t) { return String(t.name).toLowerCase() === String(req.bolag).toLowerCase(); })[0];
+      if (!term) term = wpFetch_(sajt, '/bolag', { method: 'post', json: { name: req.bolag } });
+      post.bolag = [term.id];
+    } catch (e) {
+      varningar.push('Bolaget kunde inte kopplas: ' + e.message);
+    }
+  }
+
+  // 3. Inlägget (alltid utkast)
+  post.status = 'draft';
+  var skapat = wpFetch_(sajt, '/' + req.endpoint, { method: 'post', json: post });
+
+  // 4. Redaktion + leads
+  var redaktion = false;
+  if (req.redaktion) {
+    try {
+      var rad = req.redaktion;
+      rad.publikation = WP_SAJTER[sajt].pub;
+      rad.url = skapat.link || '';
+      rad.wpId = skapat.id;
+      medLas_(function () { laggTill_('artiklar', rad); });
+      redaktion = true;
+    } catch (e) {
+      varningar.push('Kunde inte läggas in i Redaktion + leads: ' + e.message);
+    }
+  }
+
+  return {
+    ok: true,
+    post: { id: skapat.id, link: skapat.link },
+    redigera: WP_SAJTER[sajt].api.replace('/wp-json/wp/v2', '') + '/wp-admin/post.php?action=edit&post=' + skapat.id,
+    redaktion: redaktion,
+    varningar: varningar
+  };
 }

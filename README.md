@@ -37,6 +37,16 @@ Ingen data och inga nycklar ligger i det här repot. Teamkoden sparas i Apps Scr
 
 Byta teamkod: kör funktionen `bytTeamkod` i Apps Script.
 
+## Publiceringsverktyget
+
+Publiceringsverktyget (`rapportering/publicera.html`) skickar artiklar hit. Apps Script lägger
+upp dem som utkast i WordPress och lägger samtidigt in dem i Redaktionsplan (status Granskas).
+Lösenorden till WordPress ligger bara i Script Properties – aldrig i koden eller i webbläsaren.
+
+- Spara eller byt inloggning: kör `sparaWordPress` (frågar efter användarnamn och
+  applikationslösenord för HO, DM och DR; Avbryt = hoppa över en sajt).
+- Kontrollera: kör `testaWordPress`.
+
 ## Senare
 
 - AI-förslag på bolag och kontaktpersoner (kräver en API-nyckel som sparas i Apps Script, aldrig här).
