@@ -71,7 +71,9 @@ function setup() {
 
 /**
  * Spara inloggningen till WordPress (applikationslösenord) för publiceringsverktyget.
- * Kör den här funktionen. Lösenorden sparas i Script Properties och syns aldrig på GitHub
+ * Enklast: Projektinställningar (kugghjulet) → Skriptegenskaper → lägg till
+ *   WP_HO_USER, WP_HO_PASS, WP_DM_USER, WP_DM_PASS, WP_DR_USER, WP_DR_PASS.
+ * Alternativ: kör den här funktionen med Kör (inte Felsök) och svara i kalkylarkets flik. Lösenorden sparas i Script Properties och syns aldrig på GitHub
  * eller i webbläsaren. Tryck Avbryt för en sajt du inte vill ändra.
  */
 function sparaWordPress() {
@@ -91,18 +93,22 @@ function sparaWordPress() {
   ui.alert(sparade.length ? 'Sparat för: ' + sparade.join(', ') + '.' : 'Inget ändrades.');
 }
 
-/** Testar inloggningen mot alla sajter. Kör den efter sparaWordPress. */
+/** Testar inloggningen mot alla sajter. Resultatet visas i Körningsloggen. */
 function testaWordPress() {
-  var rader = Object.keys(WP_SAJTER).map(function (s) {
+  Object.keys(WP_SAJTER).forEach(function (s) {
+    var namn = WP_SAJTER[s].namn;
     var a = wpAuth_(s);
-    if (!a) return WP_SAJTER[s].namn + ': ingen inloggning sparad';
-    var r = UrlFetchApp.fetch(WP_SAJTER[s].api + '/users/me?context=edit', { headers: { Authorization: a }, muteHttpExceptions: true });
-    var k = r.getResponseCode();
-    if (k !== 200) return WP_SAJTER[s].namn + ': FEL (' + k + ')';
-    var u = JSON.parse(r.getContentText());
-    return WP_SAJTER[s].namn + ': OK – ' + u.name + ' (' + (u.roles || []).join(', ') + ')';
+    if (!a) { console.log(namn + ': ingen inloggning sparad (WP_' + s.toUpperCase() + '_USER / _PASS saknas)'); return; }
+    try {
+      var r = UrlFetchApp.fetch(WP_SAJTER[s].api + '/users/me?context=edit', { headers: { Authorization: a }, muteHttpExceptions: true });
+      var k = r.getResponseCode();
+      if (k !== 200) { console.log(namn + ': FEL ' + k + ' – ' + r.getContentText().slice(0, 150)); return; }
+      var u = JSON.parse(r.getContentText());
+      console.log(namn + ': OK – inloggad som ' + u.name + ' (' + (u.roles || []).join(', ') + ')');
+    } catch (e) {
+      console.log(namn + ': kunde inte nås – ' + e.message);
+    }
   });
-  SpreadsheetApp.getUi().alert(rader.join('\n'));
 }
 
 /** Byt teamkod i efterhand: kör den här funktionen. */
