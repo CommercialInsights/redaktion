@@ -435,7 +435,7 @@ function publicera_(req) {
       });
       var upd = {};
       if (req.bild.titel) { upd.title = req.bild.titel; upd.alt_text = req.bild.alt || req.bild.titel; }
-      if (req.bild.bildtext) upd.caption = req.bild.bildtext;
+      if (req.bild.bildtext) { upd.caption = req.bild.bildtext; upd.description = req.bild.bildtext; }
       if (Object.keys(upd).length) { try { wpFetch_(sajt, '/media/' + media.id, { method: 'post', json: upd }); } catch (e) {} }
       post.featured_media = media.id;
     } catch (e) {
