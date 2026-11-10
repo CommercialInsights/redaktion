@@ -446,7 +446,7 @@
   });
 
   $('#innehall').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-redigera],[data-tillleads],[data-leadred],[data-tillvarm],[data-varmred],[data-mejl],[data-logga],[data-taborta],[data-tabortl]');
+    var b = e.target.closest('[data-redigera],[data-tillleads],[data-leadred],[data-tillvarm],[data-varmred],[data-mejl],[data-saljmejl],[data-logga],[data-taborta],[data-tabortl]');
     if (!b) return;
     if (b.dataset.redigera) oppnaArtikel(hitta('artiklar', b.dataset.redigera));
     if (b.dataset.logga) oppnaArtikel(hitta('artiklar', b.dataset.logga));
@@ -455,6 +455,7 @@
     if (b.dataset.tillvarm) tillVarm(b.dataset.tillvarm, b);
     if (b.dataset.varmred) oppnaVarm(hitta('varma', b.dataset.varmred));
     if (b.dataset.mejl) mejla(hitta('leads', b.dataset.mejl));
+    if (b.dataset.saljmejl) mejla(hitta('leads', b.dataset.saljmejl), true);
     if (b.dataset.taborta) { var ta = hitta('artiklar', b.dataset.taborta); taBortMedAngra('artiklar', b.dataset.taborta, 'Artikeln "' + ((ta && ta.rubrik) || '').slice(0, 40) + '" är borttagen'); }
     if (b.dataset.tabortl) { var tl = hitta('leads', b.dataset.tabortl); taBortMedAngra('leads', b.dataset.tabortl, 'Leaden ' + ((tl && tl.foretag) || '') + ' är borttagen'); }
   });
@@ -529,7 +530,7 @@
         '<td><div>' + esc(l.kontaktNamn || '–') + '</div><div class="underrad">' + esc(l.kontaktRoll || '') + (l.mejl ? ' · ' + esc(l.mejl) : '') + (l.telefon ? ' · ' + esc(l.telefon) : '') + '</div></td>' +
         bock('meddelad', 'Meddelad') + bock('linkedin', 'LinkedIn gjort') + bock('ringt', 'Ringt') + bock('mejlat', 'Mejlat') +
         '<td>' + esc(l.ansvarig || '') + '</td>' +
-        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button>' + varm + '<button type="button" class="knapp liten fara" data-tabortl="' + esc(l.id) + '" aria-label="Ta bort lead" title="Ta bort lead">×</button></div></td>' +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button><button type="button" class="knapp liten" data-saljmejl="' + esc(l.id) + '" title="' + (l.mejl ? 'Presentera Commercial Insights för en potentiell kund' : 'Mejladress saknas') + '">Säljmejl</button>' + varm + '<button type="button" class="knapp liten fara" data-tabortl="' + esc(l.id) + '" aria-label="Ta bort lead" title="Ta bort lead">×</button></div></td>' +
         '</tr>';
     }).join('');
 
@@ -550,12 +551,18 @@
     return dagar === 0 ? 'idag' : dagar === 1 ? 'igår' : 'nyligen';
   }
 
-  function mejla(l) {
+  function mejla(l, salj) {
     if (!l) return;
-    var mall = C.MALLAR[l.publikation] || C.MALLAR.HO;
+    var mall = salj ? C.SALJMEJL : (C.MALLAR[l.publikation] || C.MALLAR.HO);
     var namn = String(l.kontaktNamn || '').trim();
+    var personer = C.PERSONER || {};
+    var kollegaKort = state.namn === 'Mikael' ? 'Kalle' : 'Mikael';
+    var jag = personer[state.namn] || {}, kol = personer[kollegaKort] || {};
+    var fornamn = namn.split(/\s+/)[0] || '';
     var ers = {
-      fornamn: namn.split(/\s+/)[0] || '', namn: namn, foretag: l.foretag || '',
+      fornamn: fornamn, namn: namn, foretag: l.foretag || '',
+      halsning: fornamn ? 'Hej ' + fornamn + ',' : 'Hej,',
+      avsandareFullt: jag.namn || state.namn, kollegaFullt: kol.namn || kollegaKort, telefon: jag.telefon || '',
       rubrik: l.artikelRubrik || '', url: l.url || '', avsandare: state.namn,
       kollega: state.namn === 'Mikael' ? 'Kalle' : 'Mikael',
       publikation: (C.PUBLIKATIONER[l.publikation] || {}).namn || '',
@@ -569,7 +576,8 @@
     else window.location.href = 'mailto:' + till + '?subject=' + amne + '&body=' + text;
     if (!l.mejlat) {
       setTimeout(function () {
-        if (confirm('Bocka i Mejlat och Meddelad för ' + (l.foretag || 'leaden') + '?')) andra('leads', l.id, { mejlat: true, meddelad: true });
+        if (salj) { if (confirm('Bocka i Mejlat för ' + (l.foretag || 'leaden') + '?')) andra('leads', l.id, { mejlat: true }); }
+        else if (confirm('Bocka i Mejlat och Meddelad för ' + (l.foretag || 'leaden') + '?')) andra('leads', l.id, { mejlat: true, meddelad: true });
       }, 800);
     }
   }
