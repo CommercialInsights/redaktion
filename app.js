@@ -394,15 +394,15 @@
         : '<button type="button" class="radlank underrad" data-redigera="' + esc(a.id) + '" style="font-weight:400">+ kontakt</button>';
       return skiljerad + '<tr class="' + (a.klar ? 'klar' : '') + '">' +
         '<td class="c"><input type="checkbox" data-klar="' + esc(a.id) + '" aria-label="Markera som klar"' + (a.klar ? ' checked' : '') + '></td>' +
-        '<td style="white-space:nowrap">' + vidare + '</td>' +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap">' + vidare +
+          '<button type="button" class="knapp liten fara" data-taborta="' + esc(a.id) + '" aria-label="Ta bort artikel" title="Ta bort artikel">×</button></div></td>' +
         '<td style="white-space:nowrap"><div class="mono underrad">' + (vecka ? 'v.' + vecka : '') + '</div><div style="font-weight:500">' + kortDatum(datum) + '</div></td>' +
         '<td style="white-space:nowrap">' + pubBadge(a.publikation) + (a.typ === 'Betald' ? ' <span class="typ-betald">Betald</span>' : '') + '</td>' +
         '<td class="rubrik">' + rubrik + '</td>' +
         '<td class="bolag"><div>' + bolagCell(a) + '</div>' + kontaktRad + '</td>' +
         '<td>' + esc(a.format || '') + '</td>' +
         '<td>' + esc(a.ansvarig || '') + '</td>' +
-        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap"><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select>' +
-          '<button type="button" class="knapp liten fara" data-taborta="' + esc(a.id) + '" aria-label="Ta bort artikel" title="Ta bort artikel">×</button></div></td>' +
+        '<td style="white-space:nowrap"><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select></td>' +
         '</tr>';
     }).join('');
 
