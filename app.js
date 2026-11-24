@@ -377,7 +377,7 @@
     var forstaPub = lista.findIndex(arPub);
     var rader = lista.map(function (a, i) {
       var skiljerad = (i === forstaPub && i > 0)
-        ? '<tr><td colspan="11" style="background:var(--yta2);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dampad);padding:10px 12px">Publicerade</td></tr>'
+        ? '<tr><td colspan="9" style="background:var(--yta2);font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dampad);padding:10px 12px">Publicerade</td></tr>'
         : '';
       var datum = a.planeratDatum || a.publiceradDatum;
       var vecka = isoVecka(datum);
@@ -389,27 +389,26 @@
       if (a.typ === 'Betald') vidare = '<span class="underrad">Betald</span>';
       else if (a.tillLeads) vidare = '<span class="klart-markering">I Leads ✓</span>';
       else vidare = '<button type="button" class="knapp liten" data-tillleads="' + esc(a.id) + '">→ Leads</button>';
+      var kontaktRad = kontakter.length
+        ? '<div class="underrad">' + esc(kontakter[0].namn || '') + (kontakter[0].roll ? ', ' + esc(kontakter[0].roll) : '') + (kontakter.length > 1 ? ' · +' + (kontakter.length - 1) : '') + '</div>'
+        : '<button type="button" class="radlank underrad" data-redigera="' + esc(a.id) + '" style="font-weight:400">+ kontakt</button>';
       return skiljerad + '<tr class="' + (a.klar ? 'klar' : '') + '">' +
         '<td class="c"><input type="checkbox" data-klar="' + esc(a.id) + '" aria-label="Markera som klar"' + (a.klar ? ' checked' : '') + '></td>' +
+        '<td style="white-space:nowrap">' + vidare + '</td>' +
         '<td style="white-space:nowrap"><div class="mono underrad">' + (vecka ? 'v.' + vecka : '') + '</div><div style="font-weight:500">' + kortDatum(datum) + '</div></td>' +
-        '<td>' + pubBadge(a.publikation) + '</td>' +
-        '<td>' + (a.typ === 'Betald' ? '<span class="typ-betald">Betald</span>' : '<span class="typ-red">Redaktionell</span>') + '</td>' +
+        '<td style="white-space:nowrap">' + pubBadge(a.publikation) + (a.typ === 'Betald' ? ' <span class="typ-betald">Betald</span>' : '') + '</td>' +
         '<td class="rubrik">' + rubrik + '</td>' +
-        '<td>' + bolagCell(a) + '</td>' +
-        '<td style="min-width:170px">' + (kontakter.length
-          ? '<div style="font-weight:500">' + esc(kontakter[0].namn || '–') + '</div><div class="underrad">' + esc(kontakter[0].roll || '') + (kontakter.length > 1 ? ' · +' + (kontakter.length - 1) : '') + '</div>'
-          : '<button type="button" class="radlank underrad" data-redigera="' + esc(a.id) + '" style="font-weight:400">Lägg till</button>') + '</td>' +
+        '<td class="bolag"><div>' + bolagCell(a) + '</div>' + kontaktRad + '</td>' +
         '<td>' + esc(a.format || '') + '</td>' +
         '<td>' + esc(a.ansvarig || '') + '</td>' +
-        '<td><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select></td>' +
-        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap">' + vidare +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap"><select class="inline-select" data-status="' + esc(a.id) + '" aria-label="Status">' + options(C.STATUS, a.status || 'Idé') + '</select>' +
           '<button type="button" class="knapp liten fara" data-taborta="' + esc(a.id) + '" aria-label="Ta bort artikel" title="Ta bort artikel">×</button></div></td>' +
         '</tr>';
     }).join('');
 
-    var html = '<div class="tabellram"><table style="min-width:1200px"><thead><tr>' +
-      '<th class="c">Klar</th><th>Vecka / datum</th><th>Pub.</th><th>Typ</th><th>Rubrik</th><th>Bolag</th><th>PR / marknad</th><th>Format</th><th>Ansvarig</th><th>Status</th><th></th>' +
-      '</tr></thead><tbody>' + (rader || '<tr><td colspan="11" class="tom">Inga artiklar här än. Lägg till med <strong>+ Ny artikel</strong> eller <strong>Klistra in flera</strong>.</td></tr>') + '</tbody></table></div>';
+    var html = '<div class="tabellram"><table><thead><tr>' +
+      '<th class="c">Klar</th><th>Leads</th><th>Datum</th><th>Pub.</th><th>Rubrik</th><th>Bolag / kontakt</th><th>Format</th><th>Ansvarig</th><th>Status</th>' +
+      '</tr></thead><tbody>' + (rader || '<tr><td colspan="9" class="tom">Inga artiklar här än. Lägg till med <strong>+ Ny artikel</strong> eller <strong>Klistra in flera</strong>.</td></tr>') + '</tbody></table></div>';
     $('#innehall').innerHTML = html;
   }
 
@@ -522,22 +521,21 @@
         ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="font-weight:600">' + esc(l.artikelRubrik || l.url) + '</a>'
         : '<span style="font-weight:600">' + esc(l.artikelRubrik || '') + '</span>';
       var varm = l.varm ? '<span class="klart-markering">Varm ✓</span>' : '<button type="button" class="knapp liten" data-tillvarm="' + esc(l.id) + '">→ Varm</button>';
+      var kontaktInfo = [l.kontaktNamn, l.kontaktRoll].filter(Boolean).map(esc).join(', ');
+      var kontaktTips = [l.mejl, l.telefon].filter(Boolean).join(' · ');
       return '<tr class="' + (l.meddelad ? '' : 'markerad') + '">' +
-        '<td class="mono underrad" style="white-space:nowrap">' + esc(l.publiceradDatum || '') + '</td>' +
-        '<td>' + pubBadge(l.publikation) + '</td>' +
-        '<td style="min-width:200px;max-width:280px">' + artikel + '</td>' +
-        '<td><button type="button" class="radlank" data-leadred="' + esc(l.id) + '">' + esc(l.foretag || '(företag)') + '</button></td>' +
-        '<td><div>' + esc(l.kontaktNamn || '–') + '</div><div class="underrad">' + esc(l.kontaktRoll || '') + (l.mejl ? ' · ' + esc(l.mejl) : '') + (l.telefon ? ' · ' + esc(l.telefon) : '') + '</div></td>' +
         bock('meddelad', 'Meddelad') + bock('linkedin', 'LinkedIn gjort') + bock('ringt', 'Ringt') + bock('mejlat', 'Mejlat') +
+        '<td class="bolag"><button type="button" class="radlank" data-leadred="' + esc(l.id) + '">' + esc(l.foretag || '(företag)') + '</button>' +
+          '<div class="underrad"' + (kontaktTips ? ' title="' + esc(kontaktTips) + '"' : '') + '>' + (kontaktInfo || 'Ingen kontakt') + '</div></td>' +
+        '<td class="artikel"><div class="underrad" style="margin-bottom:3px">' + pubBadge(l.publikation) + ' <span class="mono">' + kortDatum(l.publiceradDatum) + '</span></div>' + artikel + '</td>' +
         '<td>' + esc(l.ansvarig || '') + '</td>' +
-        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button><button type="button" class="knapp liten" data-saljmejl="' + esc(l.id) + '" title="' + (l.mejl ? 'Presentera Commercial Insights för en potentiell kund' : 'Mejladress saknas') + '">Säljmejl</button>' + varm + '<button type="button" class="knapp liten fara" data-tabortl="' + esc(l.id) + '" aria-label="Ta bort lead" title="Ta bort lead">×</button></div></td>' +
+        '<td style="white-space:nowrap"><div class="knapprad" style="gap:6px;flex-wrap:nowrap"><button type="button" class="knapp liten" data-mejl="' + esc(l.id) + '"' + (l.mejl ? '' : ' title="Mejladress saknas"') + '>Mailutkast</button><button type="button" class="knapp liten" data-saljmejl="' + esc(l.id) + '" title="' + (l.mejl ? 'Presentera Commercial Insights för en potentiell kund' : 'Mejladress saknas') + '">Säljmejl</button>' + varm + '<button type="button" class="knapp liten fara" data-tabortl="' + esc(l.id) + '" aria-label="Ta bort lead" title="Ta bort lead">×</button></div></td>' +
         '</tr>';
     }).join('');
 
-    html += '<div class="tabellram" style="margin-top:16px"><table style="min-width:1220px"><thead><tr>' +
-      '<th>Publicerad</th><th>Pub.</th><th>Artikel</th><th>Företag</th><th>Kontakt</th>' +
-      '<th class="c">Meddelad</th><th class="c">LinkedIn</th><th class="c">Ringt</th><th class="c">Mejlat</th><th>Ansvarig</th><th><span class="dold">Åtgärder</span></th>' +
-      '</tr></thead><tbody>' + (rader || '<tr><td colspan="11" class="tom">Inga leads här än. Skicka artiklar hit med <strong>→ Leads</strong> i Redaktionsplanen.</td></tr>') + '</tbody></table></div>';
+    html += '<div class="tabellram" style="margin-top:16px"><table><thead><tr>' +
+      '<th class="c">Meddelad</th><th class="c">LinkedIn</th><th class="c">Ringt</th><th class="c">Mejlat</th><th>Företag / kontakt</th><th>Artikel</th><th>Ansvarig</th><th><span class="dold">Åtgärder</span></th>' +
+      '</tr></thead><tbody>' + (rader || '<tr><td colspan="8" class="tom">Inga leads här än. Skicka artiklar hit med <strong>→ Leads</strong> i Redaktionsplanen.</td></tr>') + '</tbody></table></div>';
     $('#innehall').innerHTML = html;
   }
 

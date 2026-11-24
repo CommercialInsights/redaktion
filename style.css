@@ -31,7 +31,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
 .dold { display: none !important; }
 
-.sida { max-width: 1320px; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 22px; }
+.sida { max-width: 1600px; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 22px; }
 
 /* Topp */
 .topp { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
@@ -75,13 +75,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Tabeller */
 .tabellram { background: var(--yta); border: 1px solid var(--linje); border-radius: 14px; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-th { font-weight: 600; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--dampad); text-align: left; padding: 12px; border-bottom: 1px solid var(--linje); white-space: nowrap; }
-td { padding: 12px; border-bottom: 1px solid var(--linje2); font-size: 14px; vertical-align: middle; }
+th { font-weight: 600; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--dampad); text-align: left; padding: 10px; border-bottom: 1px solid var(--linje); white-space: nowrap; }
+td { padding: 10px 10px; border-bottom: 1px solid var(--linje2); font-size: 14px; vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
 tr.klar td { opacity: .55; }
 tr.markerad td { background: #FFFBF3; }
 td.c, th.c { text-align: center; }
-td.rubrik { font-weight: 600; min-width: 220px; max-width: 380px; }
+td.rubrik { font-weight: 600; min-width: 200px; max-width: 360px; }
+td.bolag { min-width: 150px; max-width: 240px; }
+td.artikel { min-width: 200px; max-width: 340px; }
+td.artikel a { font-size: 13px; }
 .radlank { background: none; border: 0; padding: 0; text-align: left; font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--kant); text-underline-offset: 3px; }
 .underrad { font-size: 12px; color: var(--dampad); font-weight: 400; }
 input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--text); margin: 0; cursor: pointer; }
