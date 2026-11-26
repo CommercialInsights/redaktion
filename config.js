@@ -2,12 +2,20 @@
 // Här kan du ändra namn, format och mejlmallar utan att röra resten av koden.
 
 var MALLTEXT =
-  'Hej {fornamn}!\n\n' +
-  'Vill bara berätta att vi gjorde en kort summering på nyheten ni släppte {nar}: {url}\n' +
-  'Säg till om något ser konstigt ut.\n\n' +
-  'Om det är intressant tar jag och min kollega {kollega} gärna ett kort möte för att berätta vad vi erbjuder och kan hjälpa till med. ' +
-  'Vi söker bland annat bolag som vill bidra med krönikor på alla våra plattformar.\n\n' +
-  'Vänliga hälsningar\n{avsandare}';
+  '{halsning}\n\n' +
+  'Vill bara berätta att vi har publicerat en kort summering av nyheten ni släppte {nar}: {url}\n\n' +
+  'Jag och min kollega {kollegaFullt} hjälper företag att synas genom både förtjänt och köpt media. ' +
+  'Via vår PR-modell Publicerat (publicerat.se) pitchar vi nyhetsvinklar till över 130 redaktioner, och ni betalar bara för det som faktiskt publiceras. ' +
+  'Vi erbjuder också annonser, native-artiklar och partnerskap på våra fyra nyhetssajter:\n\n' +
+  '• Hallbaromstallning.se – näringslivets gröna omställning\n' +
+  '• DagensMedarbetare.se – arbetsliv, kompetensförsörjning och HR\n' +
+  '• Lokalpolitiker.se – för kommun- och regionpolitiker i hela Sverige\n' +
+  '• DagensRapport.se – rapporterna som produceras i Sverige, som snabba insikter\n\n' +
+  'Låter det intressant? Vi berättar gärna mer under ett kort möte.\n\n' +
+  'Vänliga hälsningar\n' +
+  '{avsandareFullt}\n' +
+  'Commercial Insights Sweden AB\n' +
+  '{telefon}';
 
 // Säljmejl när du kontaktar potentiella kunder (knappen "Säljmejl" i Leads).
 // {halsning} blir "Hej Anna," eller bara "Hej," om förnamn saknas.
